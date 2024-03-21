@@ -26,7 +26,8 @@ def convert_mb_to_bytes(memory_size:int) -> int:
 
 def get_memory_size(line:string) -> string:
     '''
-    From a QEMU command find what memory size was passed through to find the appropriate memory in the host sytem.
+    From a QEMU command find what memory size was passed through to 
+    find the appropriate memory in the host sytem.
     Default memory if no memory argument was passed is 128 MB.
     '''
     at_memory = False
@@ -40,7 +41,8 @@ def get_memory_size(line:string) -> string:
         elif at_memory and char.isnumeric():
             memory_size_string += char
         # Get the memory size tag (GB or MB), if no tag assume MB
-        elif at_memory and ((char.isalpha() and char != 'm') or line[letter_num:letter_num+1] == ' -'):
+        elif at_memory and ((char.isalpha() and char != 'm') \
+                            or line[letter_num:letter_num+1] == ' -'):
             memory_size_integer = int(memory_size_string)
             # Convert to bytes and return
             if char == 'G':
@@ -93,54 +95,6 @@ def find_ram_specific_memory(pid:string, machine_memory:string) -> string:
               err.stderr.decode("utf-8").strip())
         return '', ''
 
-
-def read_entire_memory(pid:string, top_address:string, bot_address:string):
-    '''
-    Using the PID and addresses found from find_ram_specific_memory function,
-    get the all of the VM's memory.
-    '''
-    # Get memory using sudo dd
-    if top_address or not bot_address:
-        num_1 = hex_to_decimal(top_address)
-        num_2 = hex_to_decimal(bot_address)
-        skip_num = num_1 // 4096
-        count_num = (num_2 - num_1) // 4096
-        try:
-            # Return VM memory content
-            memory_page = subprocess.run('sudo dd if=/proc/' + pid + '/mem bs=4096 skip=' + str(
-                skip_num) + ' count=' + str(count_num), shell=True, check=True, capture_output=True)
-            return memory_page
-        except (subprocess.CalledProcessError) as err:
-            print("Could not read the VM memory in host system. Error returned: " +
-                  err.stderr.decode("utf-8").strip())
-            return None
-    # No VM memory found
-    else:
-        return None
-
-
-def read_one_memory_page_for_testing(pid:string, top_address:string, bot_address:string):
-    '''
-    Using the PID and addresses found from find_ram_specific_memory function,
-    get one page of the memory conent,
-    '''
-    if top_address or not bot_address:
-        num_1 = hex_to_decimal(top_address)
-        skip_num = num_1 // 4096
-        try:
-            # Return VM memory content
-            memory_page = subprocess.run('sudo dd if=/proc/' + pid + '/mem bs=4096 skip=' + str(
-                skip_num) + ' count=1', shell=True, check=True, capture_output=True)
-            return memory_page
-        except (subprocess.CalledProcessError) as err:
-            print("Could not read the VM memory in host system. Error returned: " +
-                  err.stderr.decode("utf-8").strip())
-            return None
-    # Get memory using sudo dd
-    else:
-        return None
-
-
 def read_one_memory_page_for_printing(pid:string, top_address:string, bot_address:string):
     '''
     Using the PID and addresses found from find_ram_specific_memory function,
@@ -163,11 +117,12 @@ def read_one_memory_page_for_printing(pid:string, top_address:string, bot_addres
     # No VM memory found
     else:
         return None
-    
+
+
 def find_secret(pid: string, top_address, bot_address, secret: string):
     '''
-    Using the PID and addresses found from find_ram_specific_memory function,
-    get the all of the VM's memory.
+    Using the memory addresses of a guest, hex dump the VM content,
+    and then Grep for the desired secret.
     '''
     # Get memory using sudo dd
     if top_address or not bot_address:
@@ -176,15 +131,20 @@ def find_secret(pid: string, top_address, bot_address, secret: string):
         skip_num = num_1 // 4096
         count_num = (num_2 - num_1) // 4096
         try:
-            dd_command = 'sudo dd if=/proc/' + pid + '/mem bs=4096 skip=' + str(skip_num) + ' count=' + str(count_num)
+            #dd memory
+            dd_command = 'sudo dd if=/proc/' + pid + '/mem bs=4096 skip=' \
+                + str(skip_num) + ' count=' + str(count_num)
+            # hex dump the dd
             hex_dump_command = "hexdump -C"
+            # grep for secret
             grep_command = "sudo grep -aib -A 5 -B 5 '" + secret + "'"
-            # Return VM memory content
             memory_page = subprocess.run(dd_command, shell=True, check=True, capture_output=True)
             hex_dump = subprocess.run(
-                hex_dump_command, input=memory_page.stdout, shell=True, check=True, capture_output=True)
+                hex_dump_command, input=memory_page.stdout, shell=True,
+                check=True, capture_output=True)
             grep_secret = subprocess.run(
                 grep_command, input=hex_dump.stdout, shell=True, capture_output=True)
+            # print command used to find secret
             print(dd_command + " | " + hex_dump_command + " | " + grep_command)
             return grep_secret
             # return grep_secret
