@@ -26,12 +26,17 @@ def print_secret(pid,top_addr,bot_addr,secret):
     # Grab one page of memory for printing
     secret = memory_reader.find_secret(pid, top_addr, bot_addr,secret)
     #For each line in the memory page, print its contents
-    print(secret.stdout.decode('utf-8'))
+    # if secret and hasattr(secret, "stdout") and not hasattr(secret, "stderr"):
+    if secret.returncode == 0:
+        print(secret.stdout.decode('utf-8'))
+        # print(secret.stdout)
+    else:
+        print("NO SECRET FOUND!")
 
 def main():
     args = parser.parse_args()
     top_addr, bot_addr = get_vm_address(args.pid)
-    print_memory_pages(args.pid, top_addr, bot_addr)
+    # print_memory_pages(args.pid, top_addr, bot_addr)
     print_secret(args.pid, top_addr, bot_addr, args.secret)
     
 

@@ -176,14 +176,18 @@ def find_secret(pid: string, top_address, bot_address, secret: string):
         skip_num = num_1 // 4096
         count_num = (num_2 - num_1) // 4096
         try:
+            dd_command = 'sudo dd if=/proc/' + pid + '/mem bs=4096 skip=' + str(skip_num) + ' count=' + str(count_num)
+            hex_dump_command = "hexdump -C"
+            grep_command = "sudo grep -aib -A 5 -B 5 '" + secret + "'"
             # Return VM memory content
-            memory_page = subprocess.run('sudo dd if=/proc/' + pid + '/mem bs=4096 of=fifo2 skip=' + str(
-                skip_num) + ' count=' + str(count_num), shell=True, check=True, capture_output=True)
-            # hex_dump = subprocess.run(
-            #     "hexdump -C", input=memory_page.stdout, shell=True, check=True, capture_output=True)
+            memory_page = subprocess.run(dd_command, shell=True, check=True, capture_output=True)
+            hex_dump = subprocess.run(
+                hex_dump_command, input=memory_page.stdout, shell=True, check=True, capture_output=True)
             grep_secret = subprocess.run(
-                "sudo grep -a -o -b '.\{0,30\}." + secret + ".\{0,50\}' fifo2", input=memory_page.stdout, shell=True, check=True, capture_output=True)
+                grep_command, input=hex_dump.stdout, shell=True, capture_output=True)
+            print(dd_command + " | " + hex_dump_command + " | " + grep_command)
             return grep_secret
+            # return grep_secret
         except (subprocess.CalledProcessError) as err:
             print("Could not read the VM memory in host system. Error returned: " +
                   err.stderr.decode("utf-8").strip())
